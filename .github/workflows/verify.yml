@@ -1,0 +1,165 @@
+name: Verify distributable packages
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Build version without the v prefix (no release is published)
+        required: true
+        default: 0.2.0-dev.16
+        type: string
+
+permissions:
+  contents: read
+
+env:
+  RELEASE_VERSION: ${{ inputs.version }}
+
+jobs:
+  package:
+    runs-on: windows-2025
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@v7.0.0
+        with:
+          go-version-file: server/go.mod
+          cache-dependency-path: server/go.sum
+      - name: Build six platform archives
+        shell: pwsh
+        run: ./scripts/package-release.ps1 -Version $env:RELEASE_VERSION
+      - name: Upload only generated distribution files
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: release-candidate
+          path: |
+            dist/releases/${{ inputs.version }}/*.zip
+            dist/releases/${{ inputs.version }}/SHA256SUMS
+            dist/releases/${{ inputs.version }}/install.ps1
+            dist/releases/${{ inputs.version }}/install.sh
+            dist/releases/${{ inputs.version }}/plugin-zips/*.zip
+            dist/releases/${{ inputs.version }}/plugin-zips/SHA256SUMS
+          if-no-files-found: error
+          retention-days: 1
+
+  native:
+    needs: package
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [windows-2025, windows-11-arm, ubuntu-24.04, ubuntu-24.04-arm, macos-15-intel, macos-15]
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 20
+    env:
+      TODO_CONNECT_RELEASE_DIR: ${{ github.workspace }}/dist/releases/${{ inputs.version }}
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@v7.0.0
+        with:
+          go-version-file: server/go.mod
+          cache-dependency-path: server/go.sum
+      - uses: actions/download-artifact@v8.0.1
+        with:
+          name: release-candidate
+          path: ${{ env.TODO_CONNECT_RELEASE_DIR }}
+      - uses: actions/setup-node@v7.0.0
+        with:
+          node-version: '24'
+      - name: Install isolated Codex test host (not shipped to users)
+        shell: bash
+        run: |
+          npm install --prefix "$RUNNER_TEMP/codex-host" --ignore-scripts --no-audit --no-fund @openai/codex@0.155.1
+          node scripts/setup-ci-codex.mjs "$RUNNER_TEMP/codex-host"
+      - name: Unit, native executable, MCP and archive tests
+        run: go -C server test ./... -count=1 -timeout=10m -v
+      - name: Go vet
+        run: |
+          go -C server vet ./...
+          go -C tools test ./... -count=1
+          go -C tools vet ./...
+      - name: Unix installer and simulated download checks
+        if: runner.os != 'Windows'
+        shell: bash
+        run: sh scripts/test-unix-install.sh "$TODO_CONNECT_RELEASE_DIR" "$RELEASE_VERSION" "$TODO_CONNECT_RELEASE_DIR/install.sh" "$RUNNER_TEMP/installer-check"
+      - name: Real Linux Secret Service storage (synthetic data only)
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends dbus gnome-keyring
+          dbus-run-session -- bash -e -c '
+            printf "%s" "ci-synthetic-keyring-password" | gnome-keyring-daemon --unlock --components=secrets
+            TODO_CONNECT_TEST_OS_KEYRING=1 go -C server test ./internal/app -run "^TestLiveOSKeyring$" -count=1 -v -timeout=2m
+          '
+      - name: Real macOS Keychain storage (temporary keychain)
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          keychain="$RUNNER_TEMP/todo-connect-test.keychain-db"
+          previous_keychain=$(security default-keychain -d user | sed -E 's/^[[:space:]]*"//; s/"[[:space:]]*$//')
+          security create-keychain -p ci-synthetic-keychain-password "$keychain"
+          cleanup() {
+            security default-keychain -d user -s "$previous_keychain"
+            security delete-keychain "$keychain"
+          }
+          trap cleanup EXIT
+          security default-keychain -d user -s "$keychain"
+          security unlock-keychain -p ci-synthetic-keychain-password "$keychain"
+          TODO_CONNECT_TEST_OS_KEYRING=1 go -C server test ./internal/app -run '^TestLiveOSKeyring$' -count=1 -v -timeout=2m
+
+  docker:
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [ubuntu-24.04, ubuntu-24.04-arm]
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@v7.0.0
+        with:
+          go-version-file: server/go.mod
+          cache-dependency-path: server/go.sum
+      - name: Linux race detector and vet
+        run: docker build --target test -f packaging/docker/Dockerfile -t todo-connect-test:ci .
+      - name: Build runtime image (no push)
+        run: docker build --build-arg VERSION="$RELEASE_VERSION" -f packaging/docker/Dockerfile -t todo-connect:ci .
+      - name: Container persistence and MCP checks
+        env:
+          TODO_CONNECT_TEST_IMAGE: todo-connect:ci
+        run: go -C server test ./cmd/todo-connect -run TestDockerRuntime -count=1 -v -timeout=5m
+      - name: Export and reload the tested image (no registry push)
+        id: image-archive
+        shell: bash
+        run: |
+          image_tag="todo-connect:$RELEASE_VERSION"
+          docker image tag todo-connect:ci "$image_tag"
+          image_id=$(docker image inspect --format '{{.Id}}' "$image_tag")
+          architecture=$(docker image inspect --format '{{.Architecture}}' "$image_tag")
+          export_dir="$RUNNER_TEMP/todo-connect-image"
+          mkdir -p "$export_dir"
+          archive="$export_dir/todo-connect-$RELEASE_VERSION-linux-$architecture.tar"
+          docker image save --output "$archive" "$image_tag"
+          gzip -n "$archive"
+          docker image rm todo-connect:ci "$image_tag"
+          docker image load --input "$archive.gz"
+          test "$(docker image inspect --format '{{.Id}}' "$image_tag")" = "$image_id"
+          test "$(docker run --rm "$image_tag" version)" = "$RELEASE_VERSION"
+          TODO_CONNECT_TEST_IMAGE="$image_tag" go -C server test ./cmd/todo-connect -run '^TestDockerRuntime$' -count=1 -v -timeout=5m
+          (cd "$export_dir" && sha256sum *.tar.gz > SHA256SUMS)
+          echo "architecture=$architecture" >> "$GITHUB_OUTPUT"
+      - name: Retain tested Docker archive (not a public image release)
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: docker-candidate-linux-${{ steps.image-archive.outputs.architecture }}
+          path: |
+            ${{ runner.temp }}/todo-connect-image/*.tar.gz
+            ${{ runner.temp }}/todo-connect-image/SHA256SUMS
+          if-no-files-found: error
+          retention-days: 1

@@ -1,0 +1,6 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "todo-connect",
+  "version": "0.2.0-dev",
+  "description": "Connect Microsoft To Do and Google Tasks to AI together, with multiple local connections. Runs on your own computer without a developer-hosted relay. Development build; not affiliated with Microsoft or Google."
+}
