@@ -7,7 +7,7 @@ A source commit, a local package, an installed plugin, a GitHub Release and an O
 From the repository root:
 
 ```powershell
-./scripts/package-release.ps1 -Version '0.2.0-dev.18'
+./scripts/package-release.ps1 -Version '0.2.0-dev.19'
 ```
 
 Choose a new version for changed package contents. Existing output directories are not overwritten. The version is embedded in the executable, plugin manifest and `BUILD.json`.

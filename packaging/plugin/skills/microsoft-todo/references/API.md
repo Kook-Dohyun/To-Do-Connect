@@ -47,6 +47,14 @@ Complete/uncheck: `{"isChecked":true}` / `{"isChecked":false}`.
 
 Collection tools return one Graph page. Follow the exact returned `@odata.nextLink` in `cursor`, with the same connection and parent IDs. Omit `query` on cursor calls. Initial queries can use supported OData options such as `$top`, `$select` and `$filter`; endpoint support varies.
 
+## Completion time window
+
+Resolve “today at 3 PM” to an explicit date and user time zone; use the current time as the upper bound for “since.” Read all pages of the selected lists with `microsoft_list_tasks`. Compare `completedDateTime.dateTime` interpreted with its `timeZone`, and require `status: completed`. Do not substitute `lastModifiedDateTime`: edits are not completions. Report missing completion times as unknown, not as matches.
+
+For requested steps, read each task's `microsoft_list_checklists` pages (including parents that are still incomplete), or use a complete returned `checklistItems` collection. Require `isChecked: true` and compare `checkedDateTime`, which includes a UTC offset. Do not count a checked step as completion of its parent. Include the parent title in step results.
+
+State the exact time window and boundary interpretation. Deleted items, prior completion/uncompletion cycles and changes between observations cannot be reconstructed from this current-state query. Do not describe the result as an audit log or continuous monitoring.
+
 ## Provider reference
 
 [Lists](https://learn.microsoft.com/en-us/graph/api/resources/todotasklist?view=graph-rest-1.0) · [Tasks](https://learn.microsoft.com/en-us/graph/api/resources/todotask?view=graph-rest-1.0) · [Checklist items](https://learn.microsoft.com/en-us/graph/api/resources/checklistitem?view=graph-rest-1.0)

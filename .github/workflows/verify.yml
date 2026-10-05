@@ -6,7 +6,7 @@ on:
       version:
         description: Build version without the v prefix (no release is published)
         required: true
-        default: 0.2.0-dev.18
+        default: 0.2.0-dev.19
         type: string
 
 permissions:

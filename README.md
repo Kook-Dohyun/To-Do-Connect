@@ -56,9 +56,27 @@ Show my task lists.
 Create a list called Server-room checks.
 Add “1. Check server identity” with steps “Record hostname” and “Record OS version”.
 Show which tasks and steps I have completed.
+Show tasks and checklist steps completed since 3 PM today in my time zone.
 ```
 
 When multiple accounts or lists match, the assistant asks which one to use.
+
+Completion reports use the provider's recorded completion timestamps, not chat memory. The assistant resolves your date/time zone and distinguishes tasks from steps or subtasks. Reports describe currently completed items; they are not a full history of deleted/reopened items, background monitoring or completion hooks.
+
+## Keep using your other apps
+
+To Do Connect can work with tasks that other apps synchronize into the same Microsoft To Do account and list. These are existing provider integrations, not additional providers implemented by this plugin.
+
+| App or service | How it connects |
+| --- | --- |
+| Samsung Reminder on Galaxy | Enable **Sync with Microsoft To Do** in Reminder settings and use the same Microsoft account in this plugin. AI can then work with the synchronized To Do list while you use Reminder on your phone. [Official setup](https://support.microsoft.com/en-us/todo/sync-microsoft-to-do-with-the-samsung-reminder-app) |
+| Outlook | Outlook tasks synchronize with To Do when you use the same Microsoft account. This plugin operates on the To Do tasks, not the email inbox or calendar. [Official overview](https://support.microsoft.com/en-us/outlook/how-can-i-manage-my-outlook-tasks-on-mobile) |
+| Zapier | Its Microsoft To Do connector can create tasks and trigger workflows on task creation/completion. Connect it separately; this plugin can use the resulting To Do tasks. [Connector guide](https://help.zapier.com/hc/en-us/articles/8496034283533-How-to-get-started-with-Microsoft-To-Do-on-Zapier) |
+| IFTTT | Its Microsoft To Do integration offers task creation and a task-completed trigger, with examples involving other apps. Applets are separate automations, not built-in two-way sync. [Integration](https://ifttt.com/microsoft_todo) |
+
+For example: **Galaxy Reminder ↔ Microsoft To Do ↔ To Do Connect ↔ your AI assistant**. Choose the synchronized list when asking AI to add or inspect reminders. Microsoft currently documents one synchronized To Do list at a time in Samsung Reminder; its Samsung Cloud-only reminders and some features (including To Do steps) are not shared in the same way. Check the official setup for device/app requirements and feature differences. External synchronization may take time.
+
+The current built-in Microsoft sign-in targets personal accounts. Third-party automation services require their own accounts/consent and may have paid plans or limits; they are optional and send data through those services. Their integrations have been checked against provider documentation, not end-to-end tested by this project. Connecting this plugin alone does not enable them or extend its API permissions.
 
 ## Platforms and privacy
 

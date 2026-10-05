@@ -45,6 +45,14 @@ Collection tools return one page. Put `nextPageToken` into the next call's `quer
 
 When checking completed work, use `query: {"showCompleted":"true","showHidden":"true"}`; include `showAssigned` when assigned tasks are in scope. The listing's `parent` and `position` fields describe hierarchy and ordering.
 
+## Completion time window
+
+Resolve “today at 3 PM” to an explicit date and user time zone, then convert the bounds to RFC 3339 timestamps. For “since,” use the current time as the upper bound. Call `google_list_tasks` with `query.completedMin`, `query.completedMax`, `query.showCompleted: "true"` and `query.showHidden: "true"`; keep these filters when following `pageToken`.
+
+Require `status: completed` and compare the returned `completed` timestamp against the requested bounds. Do not substitute `updated` or `updatedMin`: edits are not completions. Report missing completion times as unknown, not as matches. Subtasks have their own status/time; use `parent` to group them, and resolve a missing parent title with an unfiltered list read if needed.
+
+State the exact time window and boundary interpretation. Deleted items, prior completion/uncompletion cycles and changes between observations cannot be reconstructed from this current-state query. Do not describe the result as an audit log or continuous monitoring.
+
 ## Provider reference
 
 [Lists](https://developers.google.com/workspace/tasks/reference/rest/v1/tasklists) · [Tasks](https://developers.google.com/workspace/tasks/reference/rest/v1/tasks) · [Move](https://developers.google.com/workspace/tasks/reference/rest/v1/tasks/move)
