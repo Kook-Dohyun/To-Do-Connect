@@ -1,0 +1,28 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "todo-connect",
+  "version": "0.2.0-dev.18",
+  "description": "Connect task services to AI",
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "To Do Connect",
+        "shortDescription": "Connect task services to AI",
+        "longDescription": "Connect your task services to AI. Use Microsoft To Do and Google Tasks with one or multiple accounts together. Create, read, edit, complete and delete lists and tasks; manage Microsoft checklist steps and Google subtasks and ordering. Runs locally with no developer-hosted relay. Native packages need no Go, Node.js or Docker installation. Bundled skills guide account setup and reuse saved connections. Google Tasks uses your own Cloud project and Desktop OAuth client. No cross-provider synchronization or copying. Development preview; not an official Microsoft or Google product.",
+        "developerName": "도현 국",
+        "category": "Productivity",
+        "defaultPrompt": [
+          "Help me connect my task services. Check existing connections before starting setup.",
+          "Show my task lists from my connected Microsoft To Do and Google Tasks accounts.",
+          "Help me add a task. Ask which account and list to use if it is unclear."
+        ],
+        "websiteURL": "https://github.com/Kook-Dohyun/To-Do-Connect",
+        "supportURL": "https://github.com/Kook-Dohyun/To-Do-Connect/blob/main/docs/support.md",
+        "privacyPolicyURL": "https://github.com/Kook-Dohyun/To-Do-Connect/blob/main/docs/privacy.md",
+        "termsOfServiceURL": "https://github.com/Kook-Dohyun/To-Do-Connect/blob/main/docs/terms.md",
+        "logo": "./assets/icon.png",
+        "composerIcon": "./assets/icon.png"
+      }
+    }
+  }
+}
